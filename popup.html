@@ -1,0 +1,93 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Per-Tab Auto Clicker</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header>
+        <h1>Per-Tab Auto Clicker</h1>
+        <div id="hostname"></div>
+        <div id="status-chip" class="status-chip status-idle">Idle</div>
+      </header>
+
+      <section id="selector-section">
+        <h2>Selector</h2>
+        <div id="selector-summary">No selector chosen</div>
+        <div class="button-row">
+          <button id="pick-element">Pick element</button>
+          <button id="test-click">Test click</button>
+          <button id="clear-selector">Clear</button>
+        </div>
+      </section>
+
+      <section id="schedule-section">
+        <h2>Schedule</h2>
+        <label>
+          <input type="checkbox" id="enable-toggle" /> Enable for this tab
+        </label>
+        <label>
+          Interval (ms)
+          <input type="number" id="interval-ms" min="250" step="50" />
+        </label>
+        <label>
+          Duration (sec)
+          <input type="number" id="duration-sec" min="1" />
+        </label>
+        <label>
+          Start mode
+          <select id="start-mode">
+            <option value="immediate">Immediate</option>
+            <option value="timeOfDay">At time</option>
+          </select>
+        </label>
+        <label id="time-of-day-row" style="display:none">
+          Start time (HH:MM)
+          <input type="time" id="start-time" />
+        </label>
+      </section>
+
+      <section id="safety-section">
+        <h2>Safety</h2>
+        <label>
+          <input type="checkbox" id="stop-on-error" checked /> Stop on error
+        </label>
+        <label>
+          <input type="checkbox" id="require-same-origin" checked /> Require same origin
+        </label>
+        <label>
+          <input type="checkbox" id="require-visible" checked /> Require visible
+        </label>
+        <label>
+          Max clicks
+          <input type="number" id="max-clicks" min="1" />
+        </label>
+        <label>
+          Interval jitter (ms)
+          <input type="number" id="jitter-ms" min="0" step="10" />
+        </label>
+      </section>
+
+      <section id="actions-section">
+        <button id="save-config">Save</button>
+        <button id="start-job">Start</button>
+        <button id="stop-job">Stop</button>
+      </section>
+
+      <section id="diagnostics-section">
+        <h2>Diagnostics</h2>
+        <div>Clicks done: <span id="clicks-done">0</span></div>
+        <div>Last run: <span id="last-run">-</span></div>
+        <div>Next run: <span id="next-run">-</span></div>
+        <div>Last result: <span id="last-result">-</span></div>
+        <div>Last error: <span id="last-error">-</span></div>
+      </section>
+
+      <section id="error-banner" class="hidden"></section>
+    </div>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

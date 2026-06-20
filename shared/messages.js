@@ -1,0 +1,33 @@
+// shared/messages.js
+
+export const MESSAGE_TYPES = {
+  // popup -> service worker
+  GET_CURRENT_TAB_STATE: "GET_CURRENT_TAB_STATE",
+  SAVE_CURRENT_TAB_CONFIG: "SAVE_CURRENT_TAB_CONFIG",
+  START_CURRENT_TAB_JOB: "START_CURRENT_TAB_JOB",
+  STOP_CURRENT_TAB_JOB: "STOP_CURRENT_TAB_JOB",
+  OPEN_PICKER_ON_CURRENT_TAB: "OPEN_PICKER_ON_CURRENT_TAB",
+  TEST_CLICK_CURRENT_TAB: "TEST_CLICK_CURRENT_TAB",
+  CLEAR_CURRENT_TAB_SELECTOR: "CLEAR_CURRENT_TAB_SELECTOR",
+
+  // service worker -> content script
+  PICKER_START: "PICKER_START",
+  PICKER_CANCEL: "PICKER_CANCEL",
+  EXECUTE_CLICK: "EXECUTE_CLICK",
+  PING_CONTENT_SCRIPT: "PING_CONTENT_SCRIPT",
+
+  // content script -> service worker
+  PICKER_RESULT: "PICKER_RESULT",
+  PICKER_CANCELLED: "PICKER_CANCELLED",
+  CLICK_RESULT: "CLICK_RESULT",
+  CONTENT_READY: "CONTENT_READY"
+};
+
+export const STORAGE_KEYS = {
+  JOBS_BY_TAB_ID: "jobsByTabId",
+  ACTIVE_JOB_TAB_IDS: "activeJobTabIds",
+  SCHEDULER_VERSION: "schedulerVersion"
+};
+
+export const API_OK = (data) => ({ ok: true, data });
+export const API_ERROR = (error) => ({ ok: false, error });
