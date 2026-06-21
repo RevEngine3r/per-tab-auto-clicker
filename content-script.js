@@ -1,7 +1,148 @@
 // content-script.js
+// NOTE: Content scripts cannot use ES module imports.
+// MESSAGE_TYPES and selector helpers are inlined here.
 
-import { MESSAGE_TYPES } from "./shared/messages.js";
-import { buildSelectorBundle, resolveSelectorBundle } from "./shared/selectors.js";
+// --- Inlined from shared/messages.js ---
+const MESSAGE_TYPES = {
+  GET_CURRENT_TAB_STATE: "GET_CURRENT_TAB_STATE",
+  SAVE_CURRENT_TAB_CONFIG: "SAVE_CURRENT_TAB_CONFIG",
+  START_CURRENT_TAB_JOB: "START_CURRENT_TAB_JOB",
+  STOP_CURRENT_TAB_JOB: "STOP_CURRENT_TAB_JOB",
+  OPEN_PICKER_ON_CURRENT_TAB: "OPEN_PICKER_ON_CURRENT_TAB",
+  TEST_CLICK_CURRENT_TAB: "TEST_CLICK_CURRENT_TAB",
+  CLEAR_CURRENT_TAB_SELECTOR: "CLEAR_CURRENT_TAB_SELECTOR",
+  PICKER_START: "PICKER_START",
+  PICKER_CANCEL: "PICKER_CANCEL",
+  EXECUTE_CLICK: "EXECUTE_CLICK",
+  PING_CONTENT_SCRIPT: "PING_CONTENT_SCRIPT",
+  PICKER_RESULT: "PICKER_RESULT",
+  PICKER_CANCELLED: "PICKER_CANCELLED",
+  CLICK_RESULT: "CLICK_RESULT",
+  CONTENT_READY: "CONTENT_READY"
+};
+
+// --- Inlined from shared/selectors.js ---
+function buildSelectorBundle(el) {
+  const tagName = el.tagName.toLowerCase();
+  const id = el.id || null;
+  const classList = Array.from(el.classList || []);
+
+  const primaryCssCandidates = [];
+
+  if (id && isStableId(id)) {
+    primaryCssCandidates.push(`#${cssEscape(id)}`);
+  }
+
+  const stableAttrSelector = buildStableAttributeSelector(el);
+  if (stableAttrSelector) {
+    primaryCssCandidates.push(stableAttrSelector);
+  }
+
+  const shortPath = buildShortCssPath(el);
+  if (shortPath) {
+    primaryCssCandidates.push(shortPath);
+  }
+
+  const primaryCss = primaryCssCandidates[0] || null;
+  const fallbackCssList = primaryCssCandidates.slice(1);
+
+  const textSnippet = extractTextSnippet(el);
+  const ariaLabel = el.getAttribute("aria-label") || null;
+
+  return {
+    primaryCss,
+    fallbackCssList,
+    xpath: null,
+    tagName,
+    textSnippet,
+    ariaLabel,
+    idValue: id,
+    classList
+  };
+}
+
+function isStableId(id) {
+  return !/^[a-f0-9]{8,}$/i.test(id);
+}
+
+function cssEscape(str) {
+  return str.replace(/([!"#$%&'()*+,./:;<=>?@\[\]^`{|}~])/g, "\\$1");
+}
+
+function buildStableAttributeSelector(el) {
+  const attrs = ["data-testid", "data-test-id", "data-qa", "name", "aria-label", "role"];
+  for (const attr of attrs) {
+    const val = el.getAttribute(attr);
+    if (val && isStableAttrValue(val)) {
+      return `${el.tagName.toLowerCase()}[${attr}="${val}"]`;
+    }
+  }
+  return null;
+}
+
+function isStableAttrValue(val) {
+  return !/^[a-f0-9]{8,}$/i.test(val);
+}
+
+function buildShortCssPath(el) {
+  const parts = [];
+  let node = el;
+  let depth = 0;
+  while (node && node.nodeType === Node.ELEMENT_NODE && depth < 4) {
+    let part = node.tagName.toLowerCase();
+    if (node.id && isStableId(node.id)) {
+      part += `#${cssEscape(node.id)}`;
+      parts.unshift(part);
+      break;
+    }
+    const classes = Array.from(node.classList || []).filter(isStableAttrValue);
+    if (classes.length) {
+      part += "." + classes.map(cssEscape).join(".");
+    }
+    const parent = node.parentElement;
+    if (parent) {
+      const siblings = Array.from(parent.children).filter((c) => c.tagName === node.tagName);
+      if (siblings.length > 1) {
+        const index = siblings.indexOf(node);
+        part += `:nth-of-type(${index + 1})`;
+      }
+    }
+    parts.unshift(part);
+    node = node.parentElement;
+    depth++;
+  }
+  return parts.length ? parts.join(" > ") : null;
+}
+
+function extractTextSnippet(el) {
+  const text = (el.textContent || "").trim();
+  if (!text) return null;
+  if (text.length <= 60) return text;
+  return text.slice(0, 57) + "...";
+}
+
+function resolveSelectorBundle(doc, bundle) {
+  const selectors = [];
+  if (bundle.primaryCss) selectors.push(bundle.primaryCss);
+  selectors.push(...bundle.fallbackCssList);
+
+  for (const sel of selectors) {
+    try {
+      const nodeList = doc.querySelectorAll(sel);
+      if (nodeList.length === 1) {
+        return { element: nodeList[0], matchedSelector: sel, matchedCount: 1 };
+      }
+      if (nodeList.length > 1) {
+        return { element: nodeList[0], matchedSelector: sel, matchedCount: nodeList.length };
+      }
+    } catch (e) {
+      // ignore invalid selector
+    }
+  }
+  return { element: null, matchedSelector: null, matchedCount: 0 };
+}
+
+// --- Content script logic ---
 
 let pickerActive = false;
 let overlayRoot = null;
