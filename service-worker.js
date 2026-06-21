@@ -160,9 +160,14 @@ async function handleOpenPickerOnCurrentTab(payload, sender) {
   if (!tab) throw new Error("No active tab");
 
   await ensureContentScript(tab.id);
-  await chrome.tabs.sendMessage(tab.id, {
-    type: MESSAGE_TYPES.PICKER_START
-  });
+
+  try {
+    await chrome.tabs.sendMessage(tab.id, {
+      type: MESSAGE_TYPES.PICKER_START
+    });
+  } catch (e) {
+    throw new Error("Could not reach content script: " + e.message);
+  }
 
   return { started: true };
 }
@@ -356,14 +361,29 @@ async function getActiveTab() {
 }
 
 async function ensureContentScript(tabId) {
-  try {
-    await chrome.tabs.sendMessage(tabId, { type: MESSAGE_TYPES.PING_CONTENT_SCRIPT });
-  } catch (e) {
-    await chrome.scripting.executeScript({
-      target: { tabId },
-      files: ["content-script.js"]
-    });
+  // Retry up to 3 times, injecting on first failure and waiting for init
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await chrome.tabs.sendMessage(tabId, { type: MESSAGE_TYPES.PING_CONTENT_SCRIPT });
+      return; // content script is alive
+    } catch (e) {
+      if (attempt === 0) {
+        // First failure: try to inject the script
+        try {
+          await chrome.scripting.executeScript({
+            target: { tabId },
+            files: ["content-script.js"]
+          });
+        } catch (injectErr) {
+          // Tab may be restricted (chrome://, extensions page, etc.)
+          throw new Error("Cannot inject script into this page: " + injectErr.message);
+        }
+      }
+      // Wait for the content script to initialize before retrying
+      await new Promise((r) => setTimeout(r, 150));
+    }
   }
+  throw new Error("Content script did not become ready after injection");
 }
 
 async function safeGetTab(tabId) {
